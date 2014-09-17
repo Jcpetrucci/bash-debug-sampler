@@ -35,7 +35,7 @@ printf "Generating temporary file: %s\n" "$$.sim.tmp" >&2
 sim dbg > $$.sim.tmp 2>/dev/null
 
 # Check that the type/frequency thresholds are not modified.
-grep -qEi "(type\=(none|err|wrn|notice))|(freq\=rare)" $$.fw1.tmp && echo "`tput smso` WARNING! `tput rmso`  Modified type / frequency thresholds are detected.  This may result in less output than expected.";
+grep -qEi "(type\=(none|err|wrn|notice))|(freq\=rare)" $$.fw1.tmp && echo "$(tput smso) WARNING! $(tput rmso)  Modified type / frequency thresholds are detected.  This may result in less output than expected.";
 
 # Define the function to zero-out debug options, set a single debug flag, start the debug, let it run X seconds, and finally stop.
 runDebug() {
@@ -47,7 +47,7 @@ runDebug() {
 	fwaccel dbg resetall >/dev/null # Zero out debug modules and flags.
 	sim dbg resetall >/dev/null # Zero out debug modules and flags.
 	fw ctl debug -buf 16000 >/dev/null # Set the buffer size.
-	RESULTFILE=Debug_log_for_${TYPE}_${MODULE}_${FLAG}.txt # Create file for output and name it with what debug we're running currently.
+	RESULTFILE=Debug_log_for_${TYPE}_${MODULE}_${FLAG// /_}.txt # Create file for output and name it with what debug we're running currently.
 	
 	# Selector for different types of debugs (fw1/fwaccel/sim).
 	case "$TYPE" in
@@ -75,33 +75,33 @@ giveEta() {
 automaticParse() {
 	# Parse fw1
 	MODULEARRAY=( $(sed -nre 's/Module: (.+)/\1/gp' $$.fw1.tmp) ) # Build array of possible modules from temp file.
-	for i in ${MODULEARRAY[@]}; do
+	for MODULE in ${MODULEARRAY[@]}; do
 		j=0 # Bash lacks multi-dimensional arrays, so this is a weak hack allowing us to have pseudo sub-arrays (suffixing a unique number).
-		TEMPARRAY=( $(grep -A1 "Module: $i" $$.fw1.tmp | tail -1 | sed -e 's/Kernel debugging options: //g') ) # Grep for the current module (variable $i).  Get all flags for this specific module (tail).
-		for k in ${TEMPARRAY[@]}; do # For each flag of this module...
-			echo fw1 $i $k >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
+		FLAGARRAY=( $(grep -A1 "Module: $MODULE" $$.fw1.tmp | tail -1 | sed -e 's/Kernel debugging options: //g') ) # Grep for the current module (variable $MODULE).  Get all flags for this specific module (tail).
+		for FLAG in ${FLAGARRAY[@]}; do # For each flag of this module...
+			echo fw1 $MODULE $FLAG >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
 			j=$(($j + 1)) # Increment the unique variable for the next pass.
 		done
 	done
 	
 	# Parse fwaccel
 	MODULEARRAY=( $(sed -nre 's/Module: ([a-zA-Z]+)/\1/gp' $$.fwaccel.tmp) ) # Build array of possible modules from temp file.
-	for i in ${MODULEARRAY[@]}; do
+	for MODULE in ${MODULEARRAY[@]}; do
 		j=0 # Bash lacks multi-dimensional arrays, so this is a weak hack allowing us to have pseudo sub-arrays (suffixing a unique number).
-		TEMPARRAY=( $(grep -A1 "Module: $i" $$.fwaccel.tmp | tail -1) ) # Grep for the current module (variable $i).  Get all flags for this specific module (tail).
-		for k in ${TEMPARRAY[@]}; do # For each flag of this module...
-			echo fwaccel $i $k >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
+		FLAGARRAY=( $(grep -A1 "Module: $MODULE" $$.fwaccel.tmp | tail -1) ) # Grep for the current module (variable $MODULE).  Get all flags for this specific module (tail).
+		for FLAG in ${FLAGARRAY[@]}; do # For each flag of this module...
+			echo fwaccel $MODULE $FLAG >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
 			j=$(($j + 1)) # Increment the unique variable for the next pass.
 		done
 	done
 
 	# Parse sim
 	MODULEARRAY=( $(sed -nre 's/Module: ([a-zA-Z]+)/\1/gp' $$.sim.tmp) ) # Build array of possible modules from temp file.
-	for i in ${MODULEARRAY[@]}; do
+	for MODULE in ${MODULEARRAY[@]}; do
 		j=0 # Bash lacks multi-dimensional arrays, so this is a weak hack allowing us to have pseudo sub-arrays (suffixing a unique number).
-		TEMPARRAY=( $(grep -A1 "Module: $i" $$.sim.tmp | tail -1) ) # Grep for the current module (variable $i).  Get all flags for this specific module (tail).
-		for k in ${TEMPARRAY[@]}; do # For each flag of this module...
-			echo sim $i $k >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
+		FLAGARRAY=( $(grep -A1 "Module: $MODULE" $$.sim.tmp | tail -1) ) # Grep for the current module (variable $MODULE).  Get all flags for this specific module (tail).
+		for FLAG in ${FLAGARRAY[@]}; do # For each flag of this module...
+			echo sim $MODULE $FLAG >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
 			j=$(($j + 1)) # Increment the unique variable for the next pass.
 		done
 	done
@@ -110,15 +110,15 @@ automaticParse() {
 main() {
 	[[ -z "$1" ]] && [[ ! -f "$1" ]] && automaticParse # Only do automatic parsing if no valid manual file is supplied.
 	
-	NUMBEROFFLAGS=`wc -l "${1:-$$.vars.tmp}" | awk '{print $1}'` # Count the number of flags provided.
+	NUMBEROFFLAGS=$(wc -l "${1:-$$.vars.tmp}" | awk '{print $1}') # Count the number of flags provided.
 	giveEta
 	# For each flag of each module, call runDebug()
 	i=0; # Used to show progress.
 	while read -a TYPE_MODULE_FLAG_ARRAY; do
 		i=$(($i + 1))
-		TYPE=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | awk '{print $1}') # Parse the txt file and grab the type in the line.
-		MODULE=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | awk '{print $2}') # Parse the txt file and grab the module in the line.
-		FLAG=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | awk '{print $3}') # Parse the txt file and grab the flag in the line.
+		TYPE=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | cut -d' ' -f1) # Parse the txt file and grab the type in the line.
+		MODULE=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | cut -d' ' -f2) # Parse the txt file and grab the module in the line.
+		FLAG=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | cut -d' ' -f3-) # Parse the txt file and grab the flag in the line.
 		runDebug "$TYPE" "$MODULE" "$FLAG"
 	done < "${1:-$$.vars.tmp}" # Read the file into the loop.
 	unset i # Free up $i variable.

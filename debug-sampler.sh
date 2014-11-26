@@ -30,7 +30,7 @@ trapExit() {
 	exit 0
 }
 
-# Ran with no arguments we can get a listing of all available modules and flags.  Parse this to build our list.
+# Ran with no arguments we can get a listing of all available modules and flags.  Parse this to build our list.  This step is needed regardless of automatic parse, so we can check for modified type/frequency thresholds.
 printf "Generating temporary file: %s\n" "$$.fw1.tmp" >&2
 fw ctl debug -m > $$.fw1.tmp 2>/dev/null # Create a temporary file named with self PID so we can parse all modules and flags
 printf "Generating temporary file: %s\n" "$$.fwaccel.tmp" >&2
@@ -77,35 +77,39 @@ giveEta() {
 
 # Automatic parsing of modules and flags
 automaticParse() {
+
 	# Parse fw1
+	printf "Parsing fw1 modules / flags...\n" >&2
 	MODULEARRAY=( $(sed -nre 's/Module: (.+)/\1/gp' $$.fw1.tmp) ) # Build array of possible modules from temp file.
 	for MODULE in ${MODULEARRAY[@]}; do
 		j=0 # Bash lacks multi-dimensional arrays, so this is a weak hack allowing us to have pseudo sub-arrays (suffixing a unique number).
 		FLAGARRAY=( $(grep -A1 "Module: $MODULE" $$.fw1.tmp | tail -1 | sed -e 's/Kernel debugging options: //g') ) # Grep for the current module (variable $MODULE).  Get all flags for this specific module (tail).
 		for FLAG in ${FLAGARRAY[@]}; do # For each flag of this module...
-			echo fw1 $MODULE $FLAG >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
+			echo fw1 $MODULE $FLAG >> $$.flags.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
 			j=$(($j + 1)) # Increment the unique variable for the next pass.
 		done
 	done
 	
 	# Parse fwaccel
+	printf "Parsing fwaccel modules / flags...\n" >&2
 	MODULEARRAY=( $(sed -nre 's/Module: ([a-zA-Z]+)/\1/gp' $$.fwaccel.tmp) ) # Build array of possible modules from temp file.
 	for MODULE in ${MODULEARRAY[@]}; do
 		j=0 # Bash lacks multi-dimensional arrays, so this is a weak hack allowing us to have pseudo sub-arrays (suffixing a unique number).
 		FLAGARRAY=( $(grep -A1 "Module: $MODULE" $$.fwaccel.tmp | tail -1) ) # Grep for the current module (variable $MODULE).  Get all flags for this specific module (tail).
 		for FLAG in ${FLAGARRAY[@]}; do # For each flag of this module...
-			echo fwaccel $MODULE $FLAG >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
+			echo fwaccel $MODULE $FLAG >> $$.flags.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
 			j=$(($j + 1)) # Increment the unique variable for the next pass.
 		done
 	done
 
 	# Parse sim
+	printf "Parsing sim modules / flags...\n" >&2
 	MODULEARRAY=( $(sed -nre 's/Module: ([a-zA-Z]+)/\1/gp' $$.sim.tmp) ) # Build array of possible modules from temp file.
 	for MODULE in ${MODULEARRAY[@]}; do
 		j=0 # Bash lacks multi-dimensional arrays, so this is a weak hack allowing us to have pseudo sub-arrays (suffixing a unique number).
 		FLAGARRAY=( $(grep -A1 "Module: $MODULE" $$.sim.tmp | tail -1) ) # Grep for the current module (variable $MODULE).  Get all flags for this specific module (tail).
 		for FLAG in ${FLAGARRAY[@]}; do # For each flag of this module...
-			echo sim $MODULE $FLAG >> $$.vars.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
+			echo sim $MODULE $FLAG >> $$.flags.tmp # ...write a line to our fake array file.  Ensure uniqueness w/ variable $j.
 			j=$(($j + 1)) # Increment the unique variable for the next pass.
 		done
 	done
@@ -114,7 +118,7 @@ automaticParse() {
 main() {
 	[[ -z "$1" ]] && [[ ! -f "$1" ]] && automaticParse # Only do automatic parsing if no valid manual file is supplied.
 	
-	NUMBEROFFLAGS=$(wc -l "${1:-$$.vars.tmp}" | awk '{print $1}') # Count the number of flags provided.
+	NUMBEROFFLAGS=$(wc -l "${1:-$$.flags.tmp}" | awk '{print $1}') # Count the number of flags provided.
 	giveEta
 	# For each flag of each module, call runDebug()
 	i=0; # Used to show progress.
@@ -124,7 +128,7 @@ main() {
 		MODULE=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | cut -d' ' -f2) # Parse the txt file and grab the module in the line.
 		FLAG=$(echo ${TYPE_MODULE_FLAG_ARRAY[@]} | cut -d' ' -f3-) # Parse the txt file and grab the flag in the line.
 		runDebug "$TYPE" "$MODULE" "$FLAG"
-	done < "${1:-$$.vars.tmp}" # Read the file into the loop.
+	done < "${1:-$$.flags.tmp}" # Read the file into the loop.
 	unset i # Free up $i variable.
 
 	trapExit # Exit nicely.

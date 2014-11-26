@@ -11,3 +11,5 @@ to determine all of the available modules and flags.
                ./debug-sampler.sh
                ./debug-sampler.sh modules.txt
 ```
+#### Demo:
+[Demo asciicast](https://asciinema.org/a/14244)

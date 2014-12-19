@@ -16,12 +16,13 @@
 # *-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
 #
 
-trap trapExit 2 15 # Upon a SIGINT (ctl-C) or SIGTERM (default level kill command) we will run this function to cleanly exit.
+trap 'trapExit early' 2 15 # Upon a SIGINT (ctl-C) or SIGTERM (default level kill command) we will run this function to cleanly exit.
 me="$(basename $0)" # Pretty-print the name of this script.
 debugduration=30 # Allow the debug to run and collect data for this time (seconds).
 
 # Before exiting run this
 trapExit() {
+	[[ -n "$1" ]] && printf "\nCaught interrupt, shutting down!\n"
 	fw ctl debug 0 # Set all debug options back to default.
 	fwaccel dbg resetall >/dev/null # Zero out debug modules and flags.
 	sim dbg resetall >/dev/null # Zero out debug modules and flags.

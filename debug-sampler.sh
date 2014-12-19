@@ -46,7 +46,7 @@ runDebug() {
 	TYPE="$1"
 	MODULE="$2"
 	FLAG="$3"
-	printf "Debug %s of %s %s: [ -m %s + %s ]\n" "$i" "$NUMBEROFFLAGS" "$TYPE" "$MODULE" "$FLAG"
+	printf "Debug %'d of %'d: %s [ -m %s + %s ]\n" "$i" "$NUMBEROFFLAGS" "$TYPE" "$MODULE" "$FLAG"
 	fw ctl debug -x >/dev/null # Zero out debug modules and flags.
 	fwaccel dbg resetall >/dev/null # Zero out debug modules and flags.
 	sim dbg resetall >/dev/null # Zero out debug modules and flags.
